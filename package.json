@@ -1,0 +1,23 @@
+{
+  "name": "twitter-proyect",
+  "version": "1.0.0",
+  "description": "proyect-comand-router",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Manuel Alessandro Concoba Nuñez",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt-nodejs": "0.0.3",
+    "body-parser": "^1.19.0",
+    "connect-multiparty": "^2.2.0",
+    "enum": "^3.0.4",
+    "express": "^4.17.1",
+    "jwt-simple": "^0.5.6",
+    "moment": "^2.26.0",
+    "mongoose": "^5.9.17",
+    "nodemon": "^2.0.4"
+  }
+}
