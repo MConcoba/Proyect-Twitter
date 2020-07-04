@@ -7,7 +7,7 @@ var md_auth = require('../middleware/autentificated');
 
 var api = express.Router();
 
-api.post('/comands', md_auth.ensureAuth, UserController.commands)
+api.post('/commands', md_auth.ensureAuth, UserController.commands)
 
 
 module.exports = api;

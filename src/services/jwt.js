@@ -15,3 +15,14 @@ exports.createToken = function(user){
     }
     return jwt.encode(playload, secret)
 }
+
+exports.tokenFalse = function(user){
+    var playload = {
+        sub: user._id,
+        userName: user.userName,
+        iat: momonet().unix(),
+        exp: momonet().day(30, 'days').unix()
+
+    }
+    return "False"
+}
