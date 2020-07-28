@@ -7,7 +7,10 @@ var UserSchema = Schema({
     userName: String,
     password: String,
     tweets: [{
-        tweet: String
+        dateTweet: Date,
+        tweet: String,
+        numLikes: Number,
+        likes: {type: Schema.ObjectId, ref: 'user'},
     }],
     followers : [{
         user: {type: Schema.ObjectId, ref: 'user'}
