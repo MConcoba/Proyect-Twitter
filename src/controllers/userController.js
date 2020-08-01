@@ -213,34 +213,36 @@ function getTweets(req, res) {
                     }else{
                         console.log(userLog.userName)
                         if(userLog.userName == name){
-                            User.findOne({_id: userFind._id}, {_id: 0, followers: 0, followings: 0, numFollowers: 0, numFollowing: 0, password: 0}, (err, userView)=>{
-                                if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
-                                if(userView){
-                                    return res.status(202).send({Tweets_User: userView})
+                            Tweet.find({user: userLogin}, (err, userLoginTweets) => {
+                                if(err)  return res.status(500).send({menssage: 'Error en la peticion ' + err})
+                                if(userLoginTweets){
+                                    return res.status(202).send({Tweets_User: userLoginTweets})
                                 }else{
-                                    return res.status(404).send({menssage: 'Error' + err})
+                                    return res.status(404).send({menssage: 'Error ' + err})
                                 }
-                            })  
+                            })
                         }else{
-                            for (let x = 0; x < userLog.followings.length; x++) {
-                                const element = userLog.followings[x].user;
-                                
-                                if(userLog.followings[x].user == userFind.id){
-                                    console.log(userLog.userName)
-                                    User.findOne({_id: userFind._id}, {_id: 0, followers: 0, followings: 0, numFollowers: 0, numFollowing: 0, password: 0}, (err, userView)=>{
-                                        if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
-                                        
-                                        if(userView){
-                                            return res.status(202).send({Tweets_User: userView})
-                                        }else{
-                                            return res.status(404).send({menssage: 'Error' + err})
-                                        }
-                                    })   
-    
-                                }if(userLog.followings[x].user != userFind.id){
-                                    return res.status(404).send({menssage: 'Usted no sigue a este usuario'})
+                            console.log(userLog.followings)
+                            if(userLog.followings.length == 0){
+                                return res.status(404).send({menssage: 'Usted no sigue a este usuario'})
+                            }else {
+                                for (let x = 0; x < userLog.followings.length; x++) {
+                                    const element = userLog.followings[x].user;
+                                   
+                                    if(userLog.followings[x].user == userFind.id){
+                                        console.log(userLog.userName)
+                                        Tweet.find({user: userFind._id}, (err, userView)=>{
+                                            if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
+                                            if(userView){
+                                                return res.status(202).send({Tweets_User: userView})
+                                            }else{
+                                                return res.status(404).send({menssage: 'Error' + err})
+                                            }
+                                        })   
+                                    }
                                 }
                             }
+                            
                         }
                                                      
                     }               
@@ -309,12 +311,12 @@ function unfollow(req, res) {
         if(!userFind){
             return res.status(404).send({menssage: 'Error al encontar el usario'})
         }else{
-            User.findOne({_id: userLogin, followings: {user: {userName: userFind.userName}}}, (err, userExisted) => {
+            User.find({_id: userLogin, followings: {user: userFind._id}}, (err, userExisted) => {
                 if(!userExisted){
-                    console.log(userFind.nameUser)
+                    console.log(userExisted)
                     return res.status(404).send({menssage: 'Usted no sigue a este usuario'})
                 }else{
-                    console.log(userFind.userName)
+                    console.log(userFind.userName + "asdf")
                     for (let x = 0; x < userFind.followers.length; x++) {
                         if(userFind.followers[x].user == userLogin){
                             var userUnfollower = userFind.followers[x].user
