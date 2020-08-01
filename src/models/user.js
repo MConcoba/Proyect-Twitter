@@ -6,12 +6,6 @@ var Schema = mongoose.Schema;
 var UserSchema = Schema({
     userName: String,
     password: String,
-    tweets: [{
-        dateTweet: Date,
-        tweet: String,
-        numLikes: Number,
-        likes: {type: Schema.ObjectId, ref: 'user'},
-    }],
     followers : [{
         user: {type: Schema.ObjectId, ref: 'user'}
     }],
