@@ -1,9 +1,10 @@
 'use strict'
 
 var User = require('../models/user');
+var Tweet = require('../models/tweet')
 var bcrypt = require('bcrypt-nodejs');
 var jwt = require('../services/jwt');
-const user = require('../models/user');
+
 
 function newUser(req, res) {
     var user = new User();
@@ -80,42 +81,49 @@ function login(req, res) {
 }
 
 function newTweet(req, res) {
-    
+    var tweetNew = new Tweet();
     var params = req.body 
     var userLogin = req.user.sub
     var comando = params.command.slice(10);
+    var date = new Date();
 
     if(comando == "" || params.command.split(' ')[2] == false){
         return res.status(202).send({menssage: 'Debe de escribir un Tweet'})
     }else{
-        User.find({_id: userLogin, "tweets.tweet": comando}, (err, tweetFind)=>{
-            if(err) return res.status(500).send({menssage: 'Error en la peticion'})
-            if(!tweetFind && tweetFind.length >= 1){
-                return res.status(202).send({menssage: 'Este Tweet ya existe'})
-            }else{
-                User.findOneAndUpdate({_id: userLogin}, {$push: {tweets: {tweet: comando}}, $inc: {numTweets: 1}}, {new: true}, (err, tweetAdd)=>{
-            
-                    if(err) return res.status(500).send({menssage: 'Error en la red'})
-                    if(!tweetAdd){
-                        return res.status(404).send({menssage: 'Error al agregar el tweet'})
-                    }else{
+        tweetNew.tweet = comando
+        tweetNew.user = userLogin
+        tweetNew.date = date
+        tweetNew.numLikes = 0
 
-                        User.findOne({_id: userLogin}, {_id: 0, followers: 0, followings: 0, numFollowers: 0, numFollowing: 0, password: 0},
-                            (err, usuario)=>{
-                        
-                            if(usuario){
-                                return res.status(200).send({User_Tweet: usuario})
+        Tweet.find({$or: [
+            {tweet: tweetNew.tweet},
+            {tweet: tweetNew.user}
+        ]})
+        .exec((err, tweetSave) => {
+            if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
+            if(tweetSave && tweetSave.length >= 1){
+                return res.status(404).send({menssage: 'El tweet ya existe'})
+            }else{
+                tweetNew.save((err, tweetSaved) => {
+                    if(err) return res.status(500).send({menssage: 'Error al guardar el usuario'})
+                    if(!tweetSaved){
+                        return res.status(404).send({menssage: 'Error al crear el usario'})
+                    }else{
+                        console.log(tweetSaved._id)
+                        User.findOneAndUpdate({_id: userLogin}, {$inc: {numTweets: 1}}, {new: true}, (err, userUpdate) => {
+                            if(userUpdate){
+                                Tweet.findOne({_id: tweetSaved._id}).populate({path: 'user', select: {userName: 1, _id: 0}}).exec((err, tweetCreated)=>{
+                                    if(tweetCreated){
+                                        return res.status(202).send({tweet: tweetCreated})
+                                    }
+                                })
                             }
                         })
-                        
                     }
                 })
-            
             }
         })
     }
-    
-    
 }
 
 function deleteTweet(req, res) {
@@ -127,33 +135,29 @@ function deleteTweet(req, res) {
     if(comando == "" || params.command.split(' ')[1] == false){
         return res.status(202).send({menssage: 'Debe de escribir el id del Tweet que desea eliminar'})
     }else{
-        User.findOne({_id: userLogin, "tweets._id": idTweet}, (err, userLog)=>{
-            if(err) return res.status(500).send({menssage: 'Error en la peticion de usuario'})
-                if(!userLog) {
-                    return res.status(404).send({menssage: 'Error en la busqueda de usuario'})
+        Tweet.findOne({_id: idTweet}, (err, userLog) => {
+            console.log(userLog)
+            
+            if(err) return res.status(500).send({menssage: 'Error en la peticion de tweet'})
+            if(!userLog) {
+                return res.status(404).send({menssage: 'Error en la busqueda de tweet'})
             }else{
-                for(let x = 0; x < userLog.tweets.length; x++){
-                    if(userLog.tweets[x]._id == idTweet){
-                        var tweetDelete = userLog.tweets[x]._id
-                        var tweetEscrito = userLog.tweets[x].tweet
-    
-                        User.findOneAndUpdate({_id: userLogin}, {$pull: {tweets: {_id: tweetDelete}}, $inc: {numTweets: -1}},
-                            (err, tweetDeleted)=>{
-                                if(err) return res.status(500).send({menssage: 'Error en la peticion'})
-                                if(tweetDeleted){
-                                    return res.status(202).send({menssage: 'El tweet ' + "\'" + tweetEscrito + "\'" +  ' se eliminó correctamente'})
-                                }else{
-                                    return res.status(404).send({menssage: 'No se logró elminar el tweet'})
-                                }
+                var tweetEscrito = userLog.tweet
+                Tweet.findOneAndDelete({_id: idTweet}, (err, tweetDelete) => {
+                    if(err) return res.status(500).send({menssage: 'Error en la peticion'})
+                    if(!tweetDelete){
+                        return res.status(404).send({menssage: 'No se logró elminar el tweet ' + err })
+                    }else{
+                        User.findOneAndUpdate({_id: userLogin}, {$inc: {numTweets: -1}}, (err, tweetDeleted) => {
+                            if(tweetDeleted){
+                                return res.status(202).send({menssage: 'El tweet ' + "\'" + tweetEscrito + "\'" +  ' se eliminó correctamente'})
+                            }
                         })
                     }
-                }
+                })
             }
         })
     }
-    
-
-
 }
 
 function updateTweet(req, res) {
@@ -166,43 +170,24 @@ function updateTweet(req, res) {
     if(comando == "" || idTweet == false){
         return res.status(500).send({menssage: 'Debe de agregar el id del Tweet a editar'})
     }else{
-        User.find({_id: userLogin, "tweets.tweet": tweetNuevo}, (err, tweetFind)=>{
+        Tweet.find({_id: idTweet, tweet: tweetNuevo}, (err, tweetFind)=>{
             if(err) return res.status(500).send({menssage: 'Error en la peticion de usuario'})
             if(!tweetFind){
                 return res.status(404).send({menssage: 'Error en la busqueda de usuario'})
             } if(!tweetFind && tweetFind.length >= 1){
                     return res.status(202).send({menssage: 'Este Tweet ya existe'})
             }else{
-
-                User.findOne({_id: userLogin}, (err, userLog) => {
-
-                    if(userLog){
-                     for (let x = 0; x < userLog.tweets.length; x++) {
-                        if(userLog.tweets[x]._id == idTweet){
-                            var tweetUpdate = userLog.tweets[x]._id
-    
-                            User.findOneAndUpdate({_id: userLogin, 'tweets._id': tweetUpdate},  {"tweets.$.tweet": tweetNuevo}, {new: true}, (err, tweetUpdated)=>{
-                                if(err) return res.status(500).send({menssage: 'Error en la peticion de Tweet'})
-                               
-                                if(!tweetUpdated){
-                                    return res.status(404).send({menssage: 'Error al actualizar el tweet'})
-                                    
-                                }else{
-                                    User.findOne({_id: userLogin}, {_id: 0, followers: 0, followings: 0, numFollowers: 0, numFollowing: 0, password: 0},
-                                        (err, usuario)=>{
-                                    
-                                        if(usuario){
-                                            return res.status(200).send({User_Tweet: usuario})
-                                        }
-                                    })
-                                }
-                            })
-                        } 
-                    }   
+                Tweet.findOneAndUpdate({_id: idTweet},  {tweet: tweetNuevo}, {new: true}, (err, tweetUpdated)=>{
+                    console.log(idTweet)
+                    if(err) return res.status(500).send({menssage: 'Error en la peticion de Tweet'})
+                    if(!tweetUpdated){
+                        return res.status(404).send({menssage: 'Error al actualizar el tweet ' + err})
+                    }else{
+                        return res.status(200).send({User_Tweet: tweetUpdated})
+                        
                     }
-                    
                 })
-            }
+            } 
         })
     }
 }
@@ -230,7 +215,6 @@ function getTweets(req, res) {
                         if(userLog.userName == name){
                             User.findOne({_id: userFind._id}, {_id: 0, followers: 0, followings: 0, numFollowers: 0, numFollowing: 0, password: 0}, (err, userView)=>{
                                 if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
-                                
                                 if(userView){
                                     return res.status(202).send({Tweets_User: userView})
                                 }else{
@@ -292,7 +276,7 @@ function follow(req, res) {
                     if(!addFollower){
                         return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
                     }else{
-                        User.findOneAndUpdate({_id: userLogin},  {$push: {followings: {user: addFollower._id}}, $inc: {numFollowing: 1}}, {new: true}, (err, addFollowing)=>{
+                        User.findOneAndUpdate({_id: userLogin},  {$push: {followings: {user: addFollower._id}}, $inc: {numFollowing: 1}}, (err, addFollowing)=>{
                             if(err) return res.status(500).send({menssage: 'Error en la peticion'})
                             if(!addFollowing){
                                 return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
@@ -385,7 +369,6 @@ function profile(req, res) {
                 if(!userLog){
                     return res.status(404).send({menssage: 'Error al identificar el usuario'})
                 }else{
-                    console.log(userLog)
                     if(userLog.userName == name){
                         return res.status(202).send({User_Selected: userFind})
                     }else{
@@ -393,7 +376,6 @@ function profile(req, res) {
                             if(userLog.followings[x].user == userFind.id){
                                 return res.status(202).send({User_Selected: userFind})
                             }
-                            
                         }
                     }
                 }
@@ -488,6 +470,10 @@ function commands(req, res) {
     } else if(String(comando.toLowerCase()) == 'all_tweet'.toLowerCase()){
 
         allTweets(req, res)
+
+    } else if(String(comando.toLowerCase()) == 'like_tweet'.toLowerCase()){
+
+        likeTweet(req, res)
     
     } else{
 
