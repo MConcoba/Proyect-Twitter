@@ -242,9 +242,7 @@ function getTweets(req, res) {
                                     }
                                 }
                             }
-                            
-                        }
-                                                     
+                        }                            
                     }               
                 })
             }
@@ -266,38 +264,35 @@ function follow(req, res) {
                if(userPrincial.userName == follower){
                    return res.status(400).send({menssage: 'Usted no se puede seguir a sí mísmo'})
                }else{
-                for (let x = 0; x < userFind.followers.length; x++) {
-                    if(userFind.followers[x].user == userLogin){
-                    
-                        return res.status(202).send({menssage: 'Usted ya sigue a este usuario'})
+                    for (let x = 0; x < userFind.followers.length; x++) {
+                        if(userFind.followers[x].user == userLogin){
+                            return res.status(202).send({menssage: 'Usted ya sigue a este usuario'})
+                        }
                     }
+                    User.findOneAndUpdate({_id: userFind._id}, {$push: {followers: {user: userLogin}}, $inc: {numFollowers: 1}},  {new: true}, (err, addFollower)=>{
+                        if(err) return res.status(500).send({menssage: 'Error en la peticion ' + err})
+                        if(!addFollower){
+                            return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
+                        }else{
+                            User.findOneAndUpdate({_id: userLogin},  {$push: {followings: {user: addFollower._id}}, $inc: {numFollowing: 1}}, (err, addFollowing)=>{
+                                if(err) return res.status(500).send({menssage: 'Error en la peticion'})
+                                if(!addFollowing){
+                                    return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
+                                }else{
+                                    User.findOne({_id: userLogin}, {tweets: 0, followers: 0,  password: 0}, ).populate({path: 'followings.user', select: {userName: 1, _id: 0}}).exec((err, usuario)=>{
+                                        if(usuario){
+                                            return res.status(200).send({User_Following: usuario})
+                                        }
+                                    })
+                                }
+                            })
+                        }
+                    })  
                 }
-
-                User.findOneAndUpdate({_id: userFind._id}, {$push: {followers: {user: userLogin}}, $inc: {numFollowers: 1}},  {new: true}, (err, addFollower)=>{
-                    if(err) return res.status(500).send({menssage: 'Error en la peticion ' + err})
-                    if(!addFollower){
-                        return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
-                    }else{
-                        User.findOneAndUpdate({_id: userLogin},  {$push: {followings: {user: addFollower._id}}, $inc: {numFollowing: 1}}, (err, addFollowing)=>{
-                            if(err) return res.status(500).send({menssage: 'Error en la peticion'})
-                            if(!addFollowing){
-                                return res.status(202).send({menssage: 'Error al seguir a este usuario ' + err})
-                            }else{
-                                User.findOne({_id: userLogin}, {tweets: 0, followers: 0,  password: 0}, ).populate({path: 'followings.user', select: {userName: 1, _id: 0}}).exec((err, usuario)=>{
-                                    if(usuario){
-                                        return res.status(200).send({User_Following: usuario})
-                                    }
-                                })
-                            }
-                        })
-                    }
-                })  
-               }
-           })
+            })
 
         }
     })
-   
 }
 
 function unfollow(req, res) {
@@ -395,27 +390,33 @@ function deleteUser(req, res) {
     User.findOne({_id: userLogin}, (err, userLog) =>{
         if(err) return res.status(500).send({menssage: 'Error en la peticion'})
         if(!userLog){
-            var nombreUser = userLog.nameUser;
             return res.status(404).send({menssage: 'Error al eliminar el usuario'})
         }else{
-            User.updateMany({"followers.user.userName": name}, {$inc: {numFollowers: -1}}, {new: true}, (err, userUpdate)=>{
+            var nombreUser = userLog.userName;
+            User.updateMany({"followers.user": userLogin},  {$pull: {followers: {user: userLogin}}, $inc: {numFollowers: -1}}, {new: true}, (err, userUpdate)=>{
                 if(err) return res.status(500).send({menssage: 'Error en la peticion ' + err})
                 if(!userUpdate){
                     return res.status(404).send({menssage: 'Error al eliminar el usuario'})
                 }else{
-                    User.updateMany({"followings.user.userName": name}, {$inc: {numFollowing: -1}}, {new: true}, (err, userUpdate)=>{
+                    User.updateMany({"followings.user": userLogin}, {$pull: {followings: {user: userLogin}}, $inc: {numFollowing: -1}}, {new: true}, (err, userUpdate)=>{
                         if(err) return res.status(500).send({menssage: 'Error en la peticion'})
                         if(!userUpdate){
                             return res.status(404).send({menssage: 'Error al eliminar el usuario'})
                         }else{
-                            User.findOneAndDelete({_id: userLogin}, (err, userDeleted) =>{
-                                if(err) return res.status(500).send({menssage: 'Error en la peticion'})
-                                if(!userDeleted){
-                                    return res.status(404).send({menssage: 'Error al eliminar el usuario'})
-                                }else{
-                                    return res.status(202).send({menssage: 'El usuario ' + nombreUser + ' eliminó correcatamente'})
+                            Tweet.deleteMany({user: userLogin}, (err, tweetDeleted) => {
+                                if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                                if(tweetDeleted || !tweetDeleted){
+                                    User.findOneAndDelete({_id: userLogin}, (err, userDeleted) =>{
+                                        if(err) return res.status(500).send({menssage: 'Error en la peticion'})
+                                        if(!userDeleted){
+                                            return res.status(404).send({menssage: 'Error al eliminar el usuario'})
+                                        }else{
+                                            return res.status(202).send({menssage: 'El usuario ' + nombreUser + ' eliminó correcatamente'})
+                                        }
+                                    })
                                 }
                             })
+                            
                         }
                     })
                 }
@@ -423,6 +424,8 @@ function deleteUser(req, res) {
         }
     })
 }
+
+
 
 function commands(req, res) {
     var params = req.body
