@@ -24,8 +24,8 @@ exports.ensureAuth = function(req, res, next){
         }else if(String(comando.toLowerCase()) == "add_tweet".toLowerCase() || String(comando.toLowerCase()) == "delete_tweet".toLowerCase() || 
                  String(comando.toLowerCase()) == "edit_tweet".toLowerCase() || String(comando.toLowerCase()) == "view_tweets".toLowerCase() || 
                  String(comando.toLowerCase()) == "follow".toLowerCase() || String(comando.toLowerCase()) == "unfollow".toLowerCase() || 
-                 String(comando.toLowerCase()) == "profile".toLowerCase() || String(comando.toLowerCase()) == 'delete_user'.toLowerCase() || 
-                 String(comando.toLowerCase()) == 'all_tweet'.toLowerCase() ){
+                 String(comando.toLowerCase()) == "profile".toLowerCase() || String(comando.toLowerCase()) == "delete_user".toLowerCase() || 
+                 String(comando.toLowerCase()) == "like_tweet".toLowerCase()){
     
             var token = req.headers.authorization.replace(/['"']+/g, '')
     
