@@ -310,6 +310,10 @@ function commands(req, res) {
     } else if(String(comando.toLowerCase()) == 'like_tweet'.toLowerCase()){
 
         tweetContoller.likeTweet(req, res)
+
+    } else if(String(comando.toLowerCase()) == 'dislike_tweet'.toLowerCase()){
+
+        tweetContoller.dislikeTweet(req, res)
     
     } else{
 

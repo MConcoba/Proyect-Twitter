@@ -220,7 +220,7 @@ function likeTweet(req, res){
                             Tweet.findOneAndUpdate({_id: idTweet}, {usersLikes: {user: userLogin}, $inc: {numLikes: 1}}, {new: true}, (err, tweetUpdated) => {
                                 if(err) return res.status(500).send({menssage: 'Error en la peticion de tweet'})
                                 if(tweetUpdated) {
-                                    return res.status(200).send({Tweet_Liked: tweetUpdated})
+                                    return res.status(200).send({TweetLikes: tweetUpdated})
                                 }
                             })
                         }else{
@@ -234,7 +234,7 @@ function likeTweet(req, res){
                                     if(tweetUpdated){
                                         Tweet.findOne({_id: idTweet}).populate({path: 'usersLike.user', select: {userName: 1, _id: 0}}).exec((err, tweetCreated)=>{
                                             if(tweetCreated){
-                                                    return res.status(202).send({tweet: tweetCreated})
+                                                    return res.status(202).send({TweetLikes: tweetCreated})
                                             }
                                         })
                                     }
@@ -248,11 +248,53 @@ function likeTweet(req, res){
     }
 }
 
+function dislikeTweet(req, res) {
+    var params = req.body
+    var userLogin = req.user.sub
+    var idTweet = params.command.split(' ')[1];
+    var comando = params.command.slice(13);
+
+    if(comando == "" || params.command.split(' ')[1] == false){
+        return res.status(202).send({menssage: 'Debe de escribir el id del Tweet que desea quitarle tu Like'})
+    }else{
+        Tweet.findOne({_id:  idTweet}, (err, tweetSelected) => {
+            if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
+            if(!tweetSelected){
+                return res.status(404).send({menssage: 'Error en la busqueda de tweet'})
+            }else{
+                User.findOne({_id: userLogin}, {followings: {$elemMatch: {user: tweetSelected.user}}}, (err, userSelected) => {
+                    if(userSelected.followings == 0){
+                        return res.status(200).send({menssage: 'Usted no sigue al dueño de este tweet'})
+                    }else{
+                        Tweet.findOne({_id: idTweet}, {usersLike: {$elemMatch: {user: userLogin}}}, (err, tweetFind) => {
+                            if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
+                            if(!tweetFind){
+                                return res.status(404).send({menssage: 'Error en la busqueda de tweet'})
+                            }
+                            console.log(tweetFind)
+                            if(tweetFind.usersLike == 0){
+                                return res.status(200).send({menssage: 'Este tweet no tiene su like'})
+                            }else{
+                                Tweet.findOneAndUpdate({_id: idTweet}, {$pull: {usersLike: {user: userLogin}}, $inc: {numLikes: -1}}, {new: true}, (err, tweetUpdated) => {
+                                    if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
+                                    if(tweetUpdated){
+                                        return res.status(202).send({TweetLikes: tweetUpdated})
+                                    }
+                                })
+                            }
+                        })
+                    }
+                })
+            }
+        })
+    }
+}
 
 module.exports= {
     newTweet,
     deleteTweet,
     updateTweet,
     getTweets,
-    likeTweet
+    likeTweet,
+    dislikeTweet
 }
