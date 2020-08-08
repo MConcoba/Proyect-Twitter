@@ -10,7 +10,18 @@ var TweetSchema = Schema({
     usersLike: [{
         user: {type: Schema.ObjectId, ref: 'user'}
     }],
-    numLikes: Number
+    replysTweet: [{
+        user: {type: Schema.ObjectId, ref: 'user'},
+        comment: String
+    }],
+    retweets: [{
+        user: {type: Schema.ObjectId, res: 'user'}
+    }],
+    commentRetweet: String,
+    infoTweetOrigin: {type: Schema.ObjectId, res: 'tweet'},
+    numLikes: Number,
+    numReplysTweet: Number,
+    numRetweets: Number
 })
 
 module.exports = mongoose.model('tweet', TweetSchema)
