@@ -281,11 +281,147 @@ function dislikeTweet(req, res) {
     }
 }
 
+function replyTweet(req, res) {
+    var params = req.body
+    var userLogin = req.user.sub
+    var idTweet = params.command.split(' ')[1];
+    var comando = params.command.slice(13);
+    var comentario = params.command.slice(37)
+
+    if(comando == "" || params.command.split(' ')[1] == false){
+        return res.status(202).send({menssage: 'Debe de escribir el id del Tweet que desea comentar'})
+    }else{
+        User.findOne({_id: userLogin}, (err, userLog) => {
+            if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+            if(!userLog){
+                return res.status(404).send({menssage: 'Error en la busqueda del usuario logeado'})
+            }else{
+                Tweet.findOne({_id: idTweet}, (err, tweetFind) => {
+                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                    if(!tweetFind){
+                        return res.status(404).send({menssage: 'Error en la busqueda del Tweet'})
+                    }else{
+                        User.findOne({_id: userLogin}, {followings: {$elemMatch: {user: tweetFind.user}}}, (err, userFollowing) => {
+                            if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                            if(userFollowing.followings == 0){
+                                return res.status(200).send({menssage: 'Usted no sigue al dueño de este tweet'})
+                            }else{
+                                Tweet.findOneAndUpdate({_id: idTweet}, {$push: {replysTweet: {comment: comentario, user: userLogin}}, $inc: {numReplysTweet: 1}}, {new: true}, (err, tweetUpdated) => {
+                                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                                    if(!tweetUpdated){
+                                        return res.status(404).send({menssage: 'Error al agregar el comentario al Tweet'})
+                                    }else{
+                                        Tweet.findOne({_id: tweetUpdated._id}, {_id: 0, usersLike: 0, retweets: 0}).populate({path: 'user', select: {userName: 1, _id: 0}}).populate({path: 'replysTweet.user', select: {userName: 1, _id: 0}}).exec((err, tweetView) => {
+                                            if(tweetView){
+                                                console.log((comentario))
+                                                return res.status(202).send({Replay_Tweet: tweetView})
+                                            }
+                                        })
+                                        
+                                    }
+                                })
+                            }
+                        })
+                    }
+                })
+            }
+        })
+    }
+}
+
+function reTweet(req, res) {
+    var retweetNew = new Tweet();
+    var date = new Date();
+    var params = req.body
+    var userLogin = req.user.sub
+    var idTweet = params.command.split(' ')[1];
+    var comando = params.command.slice(13);
+    var comentario = params.command.slice(33)
+
+    
+    if(comando == "" || params.command.split(' ')[1] == false){
+        return res.status(202).send({menssage: 'Debe de escribir el id del Tweet que desea retweet'})
+    }else{
+        User.findOne({_id: userLogin}, (err, userLog) => {
+            if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+            if(!userLog){
+                return res.status(404).send({menssage: 'Error en la busqueda del usuario logeado'})
+            }else{
+                Tweet.findOne({_id: idTweet}, (err, tweetFind) => {
+                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                    if(!tweetFind){
+                        return res.status(404).send({menssage: 'Error en la busqueda del Tweet'})
+                    }else{
+                        User.findOne({_id: userLogin}, {followings: {$elemMatch: {user: tweetFind.user}}}, (err, userFollowing) => {
+                            if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                            if(userFollowing.followings == 0){
+                                return res.status(200).send({menssage: 'Usted no sigue al dueño de este tweet'})
+                            }else{
+                                Tweet.findOneAndUpdate({_id: idTweet}, {$push: {retweets: {user: userLogin}}, $inc: {numRetweets: 1}}, {new: true}, (err, tweetUpdated) => {
+                                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                                    if(!tweetUpdated){
+                                        return res.status(404).send({menssage: 'Error al agregar el comentario al Tweet'})
+                                    }else{
+                                        retweetNew.commentRetweet = comentario
+                                        retweetNew.user = userLogin
+                                        retweetNew.date = date
+                                        retweetNew.numLikes = 0
+                                        retweetNew.numReplysTweet = 0
+                                        retweetNew.numRetweets = 0
+                                        retweetNew.infoTweetOrigin = tweetUpdated._id
+                                        console.log((comentario))
+                                        
+
+                                        Tweet.find({$or: [
+                                            {infoTweetOrigin: retweetNew.infoTweetOrigin},
+                                            {user: retweetNew.user}
+                                        ]})
+                                        .exec((err, tweetSave) => {
+                                            if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
+                                            if(tweetSave && tweetSave.length >= 1){
+                                                Tweet.findOne({infoTweetOrigin: retweetNew.infoTweetOrigin, user: retweetNew.user}, (err, tweetDuplicated) => {
+                                                    if(tweetDuplicated){
+                                                        Tweet.findOneAndDelete({_id: tweetDuplicated._id}, (err, tweetDuplicatedDeleted) => {
+                                                            if(tweetDuplicatedDeleted){
+                                                                return res.status(404).send({menssage: "tweetDuplicatedDeleted"})
+                                                            }
+                                                        })
+                                                    }
+                                                })
+                                                
+                                            }else{
+                                                retweetNew.save((err, retweetSaved) => {
+                                                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                                                    if(!retweetSaved){
+                                                        return res.status(404).send({menssage: 'Error al crear el retweet'})
+                                                    }else{
+                                                        Tweet.findOne({_id: retweetSaved._id}, {usersLike: 0, replysTweet: 0, retweets: 0}).populate({path: 'infoTweetOrigin', select: {tweet: 1, date: 1, user: 1, numLikes: 1, numReplysTweet: 1, numRetweets: 1}}).exec((err, tweetView) => {
+                                                            if(tweetView){
+                                                                return res.status(202).send({ReTweet: tweetView})
+                                                            }
+                                                        })
+                                                    }
+                                                })
+                                            }
+                                        })
+                                    }
+                                })
+                            }
+                        })
+                    }
+                })
+            }
+        })
+    }
+}
+
 module.exports= {
     newTweet,
     deleteTweet,
     updateTweet,
     getTweets,
     likeTweet,
-    dislikeTweet
+    dislikeTweet,
+    replyTweet,
+    reTweet
 }

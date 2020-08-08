@@ -315,6 +315,14 @@ function commands(req, res) {
 
         tweetContoller.dislikeTweet(req, res)
     
+    } else if(String(comando.toLowerCase()) == 'reply_tweet'.toLowerCase()){
+
+        tweetContoller.replyTweet(req, res)
+    
+    }else if(String(comando.toLowerCase()) == 'retweet'.toLowerCase()){
+
+        tweetContoller.reTweet(req, res)
+        
     } else{
 
         res.status(200).send({menssage: `El comando ` +  "\'" + comando + "\'" +` no existe `})
