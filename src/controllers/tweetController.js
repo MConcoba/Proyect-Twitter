@@ -1,7 +1,8 @@
 'use strict'
 
 var User = require('../models/user');
-var Tweet = require('../models/tweet')
+var Tweet = require('../models/tweet');
+const { compareSync } = require('bcrypt-nodejs');
 
 
 function newTweet(req, res) {
@@ -23,10 +24,12 @@ function newTweet(req, res) {
                 tweetNew.user = userLogin
                 tweetNew.date = date
                 tweetNew.numLikes = 0
+                tweetNew.numReplysTweet = 0
+                tweetNew.numRetweets = 0
 
                 Tweet.find({$or: [
                     {tweet: tweetNew.tweet},
-                    {tweet: tweetNew.user}
+                    {user: tweetNew.user}
                 ]})
                 .exec((err, tweetSave) => {
                     if(err)  return res.status(500).send({menssage: 'Error en el servidor'})
@@ -124,8 +127,6 @@ function updateTweet(req, res) {
                                 return res.status(200).send({tweet: tweetCreated})
                             }
                         })
-                       
-                        
                     }
                 })
             } 
@@ -140,50 +141,40 @@ function getTweets(req, res) {
     var name = params.command.split(' ')[1]
 
     if(name == "" || name == false){
-        return res.status(202).send({menssage: 'Debe escribir el nombre de usuairo'})
+        return res.status(202).send({menssage: 'Debe escribir el nombre de usuario'})
     }else{
         User.findOne({userName: name}, (err, userFind)=>{
             if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
             if(!userFind){
-                return res.status(404).send({menssage: 'Error al listar los tweets'})
+                return res.status(404).send({menssage: 'Error en la busqueda del usuario'})
             }else{
-                User.findOne({_id: userLogin}, (err, userLog)=>{
-                    if(err) return res.status(500).send({menssage: 'Error en la peticion de usuario'})
+                User.findOne({_id: userLogin}, {password: 0}, {followings: {$elemMatch: {user: {userName: name}}}}, (err, userLog)=>{
+                    if(err) return res.status(500).send({menssage: 'Error en la peticion de usuario ' + err})
                     if(!userLog){
-                        return res.status(404).send({menssage: 'Error al listar los tweets'})
-                    }else{
-                        console.log(userLog.userName)
-                        if(userLog.userName == name){
-                            Tweet.find({user: userLogin}, (err, userLoginTweets) => {
-                                if(err)  return res.status(500).send({menssage: 'Error en la peticion ' + err})
-                                if(userLoginTweets){
-                                    return res.status(202).send({Tweets_User: userLoginTweets})
-                                }else{
-                                    return res.status(404).send({menssage: 'Error ' + err})
-                                }
-                            })
-                        }else{
-                            console.log(userLog.followings)
-                            if(userLog.followings.length == 0){
-                                return res.status(404).send({menssage: 'Usted no sigue a este usuario'})
-                            }else {
-                                for (let x = 0; x < userLog.followings.length; x++) {
-                                    const element = userLog.followings[x].user;
-                                   
-                                    if(userLog.followings[x].user == userFind.id){
-                                        console.log(userLog.userName)
-                                        Tweet.find({user: userFind._id}, (err, userView)=>{
-                                            if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
-                                            if(userView){
-                                                return res.status(202).send({Tweets_User: userView})
-                                            }else{
-                                                return res.status(404).send({menssage: 'Error' + err})
-                                            }
-                                        })   
-                                    }
-                                }
+                        return res.status(404).send({menssage: 'Error al identificar al usuario logeado'})
+                    }
+                    if(userLog.userName == name){
+                        Tweet.find({user: userLogin}).populate({path: 'user', select: {userName: 1, _id: 0}}).populate({path: 'replysTweet.user', select: {userName: 1, _id: 0}}).populate({path: 'retweets.user', select: {userName: 1, _id: 0}}).exec((err, userLoginTweets) => {
+                            if(err)  return res.status(500).send({menssage: 'Error en la peticion ' + err})
+                            if(userLoginTweets){
+                                return res.status(202).send({Tweets_User: userLoginTweets})
+                            }else{
+                                return res.status(404).send({menssage: 'Error ' + err})
                             }
-                        }                            
+                        })
+                    }
+                    if(userLog.followings == 0){
+                        console.log(userLog.userName)
+                        return res.status(404).send({menssage: 'Usted no sigue a este usuario+'})
+                    }else{
+                        Tweet.find({user: userFind._id}).populate({path: 'user', select: {userName: 1, _id: 0}}).populate({path: 'replysTweet.user', select: {userName: 1, _id: 0}}).populate({path: 'retweets.user', select: {userName: 1, _id: 0}}).exec((err, userView)=>{
+                            if(err)  return res.status(500).send({menssage: 'Error en la peticion'})
+                            if(userView){
+                                return res.status(202).send({Tweets_User: userView})
+                            }else{
+                                return res.status(404).send({menssage: 'Error' + err})
+                            }
+                        })                              
                     }               
                 })
             }
