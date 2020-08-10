@@ -370,7 +370,6 @@ function reTweet(req, res) {
                                         retweetNew.numRetweets = 0
                                         retweetNew.infoTweetOrigin = tweetUpdated._id
                                         console.log((comentario))
-                                        
 
                                         Tweet.find({$or: [
                                             {infoTweetOrigin: retweetNew.infoTweetOrigin},
@@ -383,12 +382,22 @@ function reTweet(req, res) {
                                                     if(tweetDuplicated){
                                                         Tweet.findOneAndDelete({_id: tweetDuplicated._id}, (err, tweetDuplicatedDeleted) => {
                                                             if(tweetDuplicatedDeleted){
-                                                                return res.status(404).send({menssage: "tweetDuplicatedDeleted"})
+                                                                retweetNew.save((err, retweetSaved) => {
+                                                                    if(err) return res.status(500).send({menssage: 'Error en el servidor'})
+                                                                    if(!retweetSaved){
+                                                                        return res.status(404).send({menssage: 'Error al crear el retweet'})
+                                                                    }else{
+                                                                        Tweet.findOne({_id: retweetSaved._id}, {usersLike: 0, replysTweet: 0, retweets: 0}).populate({path: 'infoTweetOrigin', select: {tweet: 1, date: 1, user: 1, numLikes: 1, numReplysTweet: 1, numRetweets: 1}}).exec((err, tweetView) => {
+                                                                            if(tweetView){
+                                                                                return res.status(202).send({ReTweet: tweetView})
+                                                                            }
+                                                                        })
+                                                                    }
+                                                                })
                                                             }
                                                         })
                                                     }
                                                 })
-                                                
                                             }else{
                                                 retweetNew.save((err, retweetSaved) => {
                                                     if(err) return res.status(500).send({menssage: 'Error en el servidor'})

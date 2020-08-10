@@ -47,8 +47,4 @@ exports.ensureAuth = function(req, res, next){
     }else{
         res.status(200).send({menssage: 'El nombre del atributo debe ser: ' + "\'command" + "\'"})
     }
-
-
-
-    
 }
