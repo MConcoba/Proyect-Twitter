@@ -6,15 +6,13 @@ var Schema = mongoose.Schema;
 var UserSchema = Schema({
     userName: String,
     password: String,
-    tweets: [{
-        tweet: String
-    }],
     followers : [{
         user: {type: Schema.ObjectId, ref: 'user'}
     }],
-    following: [{
+    followings: [{
         user: {type: Schema.ObjectId, ref: 'user'}
     }],
+    numTweets: Number,
     numFollowers: Number,
     numFollowing: Number 
 })
